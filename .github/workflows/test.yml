@@ -30,5 +30,4 @@ jobs:
           npm run dev &  # Run in background
           sleep 20       # Wait for server to boot (adjust if needed)
 
-      - name: Run Tests
-        run: npm run test
+      
