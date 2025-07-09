@@ -1,0 +1,164 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum UserStatus {
+  active
+  inactive
+  suspended
+  pending
+  banned
+}
+
+model User {
+  id               String              @id @default(uuid())
+  username         String
+  name             String?
+  email            String              @unique
+  password         String
+  otpCode     String?
+   info      String?    
+  otpExpiry   DateTime?
+  status           UserStatus          @default(pending)
+  loginAttempts    Int                 @default(0)
+  groupId          Int
+  group            Group               @relation(fields: [groupId], references: [id])
+  preferences      UserPreference[]    @relation("UserPreferenceRelation")
+  tablePermissions TablePermission[]   @relation("UserTablePermissions")
+  userPackages     UserPackage[]
+  orders           Order[]             @relation("UserOrders")
+  cartItems        CartItem[]
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+}
+
+model Group {
+  id                Int                @id @default(autoincrement())
+  name              String             @unique
+  users             User[]
+  tablePermissions  TablePermission[]  @relation("GroupTablePermissions")
+}
+
+model TablePermission {
+  id         Int     @id @default(autoincrement())
+  userId     String?
+  groupId    Int?
+  tableName  String
+  canRead    Boolean @default(false)
+  canCreate  Boolean @default(false)
+  canUpdate  Boolean @default(false)
+  canDelete  Boolean @default(false)
+
+  user       User?   @relation("UserTablePermissions", fields: [userId], references: [id], onDelete: Cascade)
+  group      Group?  @relation("GroupTablePermissions", fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, tableName])
+  @@unique([groupId, tableName])
+}
+
+model UserPreference {
+  id          Int      @id @default(autoincrement())
+  userId      String
+  tableName   String
+  preferences String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([userId, tableName])
+  user        User      @relation("UserPreferenceRelation", fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Place {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String?
+  type        String
+  image       String?
+  phone       String?
+  latitude    Float?
+  longitude   Float?
+  address     String?
+  city        String?
+  products    Product[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+model Product {
+  id              Int         @id @default(autoincrement())
+  name            String
+  description     String?
+  price           Float
+  image           String?
+  placeId         Int
+  place           Place       @relation(fields: [placeId], references: [id])
+  cartItems       CartItem[]
+  orderItems      OrderItem[]
+
+  // Offer fields (merged)
+  offerTitle      String?     // Display title
+  offerType       String?     // buy1get1, discount, etc.
+  offerValidUntil DateTime?
+  packages        Package[]   @relation("OfferPackages")
+}
+
+model Package {
+  id           Int       @id @default(autoincrement())
+  name         String
+  price        Float
+  currency     String
+  validUntil   DateTime
+  description  String?
+  image        String?
+  products     Product[] @relation("OfferPackages")
+  userPackages UserPackage[]
+}
+
+model UserPackage {
+  id          Int       @id @default(autoincrement())
+  userId      String
+  packageId   Int
+  purchasedAt DateTime  @default(now())
+
+  user        User      @relation(fields: [userId], references: [id])
+  package     Package   @relation(fields: [packageId], references: [id])
+
+  @@unique([userId, packageId])
+}
+
+model CartItem {
+  id         Int     @id @default(autoincrement())
+  userId     String
+  productId  Int
+  quantity   Int
+  user       User     @relation(fields: [userId], references: [id])
+  product    Product  @relation(fields: [productId], references: [id])
+}
+
+model Order {
+  id             Int       @id @default(autoincrement())
+  userId         String
+  amount         Float
+  status         String
+  transactionId  String?
+  date           DateTime
+  address        String?
+  phoneNumber    String?
+  email          String?
+  orderItems     OrderItem[]
+  user           User      @relation("UserOrders", fields: [userId], references: [id])
+}
+
+model OrderItem {
+  id         Int     @id @default(autoincrement())
+  orderId    Int
+  productId  Int
+  quantity   Int
+  order      Order   @relation(fields: [orderId], references: [id])
+  product    Product @relation(fields: [productId], references: [id])
+}
